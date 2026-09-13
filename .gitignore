@@ -1,0 +1,11 @@
+/build/
+/result
+/result-*
+.direnv/
+compile_commands.json
+.cache/
+*.db
+*.db-wal
+*.db-shm
+/media/
+config.toml
