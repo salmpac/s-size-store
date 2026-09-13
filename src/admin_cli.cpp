@@ -45,6 +45,8 @@ int cmd_seed(Config const& cfg, int count) {
         return 1;
     }
 
+    // Order matters: tile N in media/placeholder is drawn for title N, so the
+    // two are picked by the same index. See scripts/make-placeholders.sh.
     static char const* kTitles[] = {
         "Оверсайз худи", "Карго-брюки", "Тактическая куртка", "Лонгслив с принтом",
         "Широкие джинсы", "Бомбер", "Шорты нейлон", "Флиска", "Жилет утилитарный",
@@ -75,8 +77,11 @@ int cmd_seed(Config const& cfg, int count) {
         std::uniform_int_distribution<int> price_d(1500, 25000);
         int price = price_d(rng);
 
+        std::uniform_int_distribution<std::size_t> kind_d(0, std::size(kTitles) - 1);
+        std::size_t kind = kind_d(rng);
+
         Item item;
-        item.title       = std::string(pick(kTitles)) + " #" + std::to_string(i + 1);
+        item.title       = std::string(kTitles[kind]) + " #" + std::to_string(i + 1);
         item.description = "Позиция из демо-каталога. Заменится реальным описанием.";
         item.brand       = pick(kBrands);
         item.price_kopek = price * 100;
@@ -115,9 +120,9 @@ int cmd_seed(Config const& cfg, int count) {
             st.step();
         }
 
-        // No real files yet; the template falls back to a placeholder tile.
+        // Demo tile matching the garment in the title.
         Image img;
-        img.path       = "placeholder/" + std::to_string((i % 12) + 1) + ".svg";
+        img.path       = "placeholder/" + std::to_string(kind + 1) + ".svg";
         img.thumb_path = img.path;
         img.width = 600; img.height = 800; img.sort_order = 0;
         conn.add_image(id, img);

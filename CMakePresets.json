@@ -2,10 +2,21 @@
   "version": 6,
   "configurePresets": [
     {
-      "name": "dev",
-      "displayName": "Development (RelWithDebInfo, tests on)",
-      "binaryDir": "${sourceDir}/build/dev",
+      "name": "base",
+      "hidden": true,
       "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_CXX_STANDARD": "20",
+        "CMAKE_CXX_STANDARD_REQUIRED": "ON",
+        "CMAKE_CXX_EXTENSIONS": "OFF",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
+    },
+    {
+      "name": "dev",
+      "inherits": "base",
+      "displayName": "Development (RelWithDebInfo, tests on)",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "RelWithDebInfo",
         "SSIZE_BUILD_TESTS": "ON"
@@ -13,24 +24,45 @@
     },
     {
       "name": "release",
+      "inherits": "base",
       "displayName": "Release",
-      "binaryDir": "${sourceDir}/build/release",
-      "generator": "Ninja",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "SSIZE_BUILD_TESTS": "OFF"
       }
+    },
+    {
+      "name": "static",
+      "inherits": "base",
+      "displayName": "Static musl build (what ships in the .deb)",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "SSIZE_BUILD_TESTS": "OFF",
+        "SSIZE_STATIC": "ON"
+      }
     }
   ],
   "buildPresets": [
-    { "name": "dev", "configurePreset": "dev" },
-    { "name": "release", "configurePreset": "release" }
+    {
+      "name": "dev",
+      "configurePreset": "dev"
+    },
+    {
+      "name": "release",
+      "configurePreset": "release"
+    },
+    {
+      "name": "static",
+      "configurePreset": "static"
+    }
   ],
   "testPresets": [
     {
       "name": "dev",
       "configurePreset": "dev",
-      "output": { "outputOnFailure": true }
+      "output": {
+        "outputOnFailure": true
+      }
     }
   ]
 }

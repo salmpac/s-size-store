@@ -6,10 +6,15 @@ project(ssize
     LANGUAGES CXX
 )
 
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+# Language standard and export of compile_commands.json come from the presets
+# (CMakePresets.json), so a build configured by hand and one configured by a
+# preset cannot drift apart. The flake passes the same values explicitly.
+
+if(NOT DEFINED CMAKE_CXX_STANDARD)
+    message(FATAL_ERROR
+        "CMAKE_CXX_STANDARD is not set. Configure with a preset "
+        "(cmake --preset dev) or pass -DCMAKE_CXX_STANDARD=20.")
+endif()
 
 option(SSIZE_BUILD_TESTS "Build unit tests" ON)
 option(SSIZE_STATIC "Link everything statically (for the shipped .deb)" OFF)

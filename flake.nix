@@ -47,7 +47,12 @@
             (tomlplusplus.overrideAttrs (_: { doCheck = false; }))
           ] ++ pkgSet.lib.optional (!static) pkgSet.catch2_3;
 
+          # nix configures cmake directly rather than through a preset, so the
+          # standard has to be passed here too — CMakeLists refuses to guess.
           cmakeFlags = [
+            "-DCMAKE_CXX_STANDARD=20"
+            "-DCMAKE_CXX_STANDARD_REQUIRED=ON"
+            "-DCMAKE_CXX_EXTENSIONS=OFF"
             "-DCMAKE_BUILD_TYPE=RelWithDebInfo"
             "-DSSIZE_BUILD_TESTS=${if static then "OFF" else "ON"}"
           ] ++ pkgSet.lib.optionals static [
