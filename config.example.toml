@@ -1,0 +1,31 @@
+[http]
+bind_address = "127.0.0.1"
+port         = 8080
+io_threads   = 1
+# MVP lives under salmpac.ru/s-size; clear this once s-size.ru is live.
+base_path    = "/s-size"
+
+[storage]
+db_path        = "/var/lib/ssize/ssize.db"
+migrations_dir = "/usr/share/ssize/migrations"
+templates_dir  = "/usr/share/ssize/templates"
+static_dir     = "/usr/share/ssize/static"
+media_root     = "/var/lib/ssize/media"
+
+[catalog]
+# The whole catalog lives in RAM; this is how often the snapshot is rebuilt.
+refresh_interval_sec = 10
+
+[metrics]
+flush_interval_ms = 1000
+queue_capacity    = 100000
+retention_days    = 90
+# Generate with: head -c 32 /dev/urandom | base64
+ip_hash_secret    = "CHANGE_ME"
+postback_secret   = "CHANGE_ME"
+# Yandex Metrica counter id; 0 disables the tag.
+metrica_counter   = 0
+
+[cookies]
+secure           = true
+session_idle_sec = 1800
