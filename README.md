@@ -65,5 +65,16 @@ conversions.
 
 ## Deploy
 
-`nix build` then CPack produces a `.deb`; `deploy/` has the systemd unit and
-the nginx snippet. nginx serves `/static/` and `/media/` directly.
+```sh
+nix build .#ssize-static
+cp result/share/ssize-deb/*.deb .
+```
+
+The shipped binary is statically linked against musl, so the package depends on
+nothing and runs on whatever the server is. This is not a stylistic choice: a
+dynamically linked nix build records `/nix/store` paths that do not exist on a
+Debian box, and `dpkg-shlibdeps` cannot map them to Debian packages either.
+
+The package installs `/usr/bin/ssize`, `/usr/share/ssize/{templates,static,
+migrations}` and the systemd unit. nginx serves `/static/` and `/media/`
+directly — see `deploy/nginx-ssize.conf.snippet`.

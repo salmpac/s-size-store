@@ -12,6 +12,15 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 option(SSIZE_BUILD_TESTS "Build unit tests" ON)
+option(SSIZE_STATIC "Link everything statically (for the shipped .deb)" OFF)
+
+if(SSIZE_STATIC)
+    # Prefer archives over shared objects when resolving find_package.
+    set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+    set(Boost_USE_STATIC_LIBS ON)
+    set(BUILD_SHARED_LIBS OFF)
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static")
+endif()
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE RelWithDebInfo)
@@ -92,18 +101,30 @@ if(SSIZE_BUILD_TESTS)
 endif()
 
 # --- install / packaging ---
-include(GNUInstallDirs)
-
-install(TARGETS ssize ssize-admin RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
-install(DIRECTORY migrations/ DESTINATION ${CMAKE_INSTALL_DATADIR}/ssize/migrations)
-install(DIRECTORY templates/  DESTINATION ${CMAKE_INSTALL_DATADIR}/ssize/templates)
-install(DIRECTORY static/     DESTINATION ${CMAKE_INSTALL_DATADIR}/ssize/static)
+# Destinations are spelled out rather than taken from GNUInstallDirs: nixpkgs
+# makes those absolute (/nix/store/...), which lands the binaries outside
+# /usr/bin in the .deb.
+install(TARGETS ssize ssize-admin RUNTIME DESTINATION bin)
+install(DIRECTORY migrations/ DESTINATION share/ssize/migrations)
+install(DIRECTORY templates/  DESTINATION share/ssize/templates)
+install(DIRECTORY static/     DESTINATION share/ssize/static)
+install(FILES config.example.toml DESTINATION share/ssize)
+install(FILES deploy/ssize.service DESTINATION lib/systemd/system)
+install(FILES deploy/nginx-ssize.conf.snippet DESTINATION share/ssize)
 
 set(CPACK_GENERATOR "DEB")
 set(CPACK_PACKAGE_NAME "ssize")
 set(CPACK_PACKAGE_CONTACT "sergeydushenkov@fastforward.pro")
 set(CPACK_DEBIAN_PACKAGE_MAINTAINER "Sergey Dushenkov")
 set(CPACK_DEBIAN_PACKAGE_SECTION "web")
-set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
+# A static binary carries its libraries, so there is nothing for shlibdeps to
+# resolve. It is also the only thing that works here: a dynamically linked
+# build points at /nix/store paths that do not exist on the target server.
+if(SSIZE_STATIC)
+    set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS OFF)
+else()
+    set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS OFF)
+    message(STATUS "Non-static build: the .deb is for local testing only")
+endif()
 set(CPACK_PACKAGING_INSTALL_PREFIX "/usr")
 include(CPack)
