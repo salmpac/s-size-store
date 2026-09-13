@@ -78,3 +78,20 @@ Debian box, and `dpkg-shlibdeps` cannot map them to Debian packages either.
 The package installs `/usr/bin/ssize`, `/usr/share/ssize/{templates,static,
 migrations}` and the systemd unit. nginx serves `/static/` and `/media/`
 directly — see `deploy/nginx-ssize.conf.snippet`.
+
+On the live host:
+
+```sh
+scp ssize-0.1.0-Linux.deb salmpac@salmpac.ru:/tmp/
+ssh salmpac@salmpac.ru
+sudo dpkg -i /tmp/ssize-0.1.0-Linux.deb
+sudo systemctl restart ssize
+```
+
+Config lives in `/etc/ssize/config.toml` (mode 640, root:ssize) and is not
+touched by the package. State — database and media — is in `/var/lib/ssize`.
+The service listens on **8081**; 8080 is zadachi on the same host.
+
+The nginx snippet is included from the `443` server block in
+`sites-enabled/default`, next to zadachi's. Note that nginx includes *every*
+file in `sites-enabled/`, so backups must not be left there.
