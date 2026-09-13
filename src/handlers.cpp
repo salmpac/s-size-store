@@ -250,13 +250,32 @@ HttpResponse handle_feed(HandlerContext& ctx, Identity const& id,
 
     std::string tag  = q.count("tag")  ? q.at("tag")  : "";
     std::string size = q.count("size") ? q.at("size") : "";
+    std::string query = q.count("q") ? q.at("q") : "";
+
+    // A new snapshot invalidates everything rendered from the old one.
+    if (ctx.feed_cache_for != catalog) {
+        ctx.feed_cache.clear();
+        ctx.feed_cache_for = catalog;
+    }
+
+    // Free-text search echoes back into the page, so those responses are not
+    // shared. Everything else is keyed by the filter pair.
+    bool cacheable = query.empty();
+    std::string key = tag + "\x1f" + size;
+
+    if (cacheable) {
+        if (auto hit = ctx.feed_cache.find(key); hit != ctx.feed_cache.end()) {
+            return make_response(http::status::ok, hit->second,
+                                 "text/html; charset=utf-8");
+        }
+    }
 
     auto items = catalog->query(tag, size, 0, 120);
 
     nlohmann::json data;
     data["base"] = ctx.cfg.base_path;
     data["page_title"] = "s-size — отобранные вещи";
-    data["query"] = q.count("q") ? q.at("q") : "";
+    data["query"] = query;
     data["metrica_counter"] = ctx.cfg.metrica_counter;
     data["active_tag"]  = tag;
     data["active_size"] = size;
@@ -273,7 +292,16 @@ HttpResponse handle_feed(HandlerContext& ctx, Identity const& id,
     data["tags"] = tags;
 
     (void)id;
-    return make_response(http::status::ok, ctx.tpl.render("feed.html", data),
+    std::string html = ctx.tpl.render("feed.html", data);
+
+    // Bounded so an arbitrary ?tag= cannot grow the map without limit; past the
+    // cap the page is simply rendered fresh.
+    constexpr std::size_t kMaxCachedFeeds = 64;
+    if (cacheable && ctx.feed_cache.size() < kMaxCachedFeeds) {
+        ctx.feed_cache.emplace(key, html);
+    }
+
+    return make_response(http::status::ok, std::move(html),
                          "text/html; charset=utf-8");
 }
 

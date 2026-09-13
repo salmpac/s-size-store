@@ -24,6 +24,14 @@ struct HandlerContext {
     ConversionQueue& conversions;
     Templating       tpl;
 
+    // Rendered feed pages, one per filter, valid for exactly one catalog
+    // snapshot. The feed is identical for every visitor inside a refresh
+    // window — identity lives in headers, not in the body — so rendering it
+    // per request is pure waste. Dropped wholesale when the snapshot changes.
+    // Touched only by the single HTTP thread, hence no locking.
+    CatalogPtr feed_cache_for;
+    std::unordered_map<std::string, std::string> feed_cache;
+
     HandlerContext(Config const& c, CatalogHandle& cat, EventQueue& ev,
                    ConversionQueue& cv);
 };
