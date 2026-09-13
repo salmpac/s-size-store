@@ -150,8 +150,9 @@ Target split_target(std::string_view target) {
 
 // ---------------------------------------------------------------- context --
 
-HandlerContext::HandlerContext(Config const& c, CatalogHandle& cat, EventQueue& ev)
-    : cfg(c), catalog(cat), events(ev), tpl(c.templates_dir) {}
+HandlerContext::HandlerContext(Config const& c, CatalogHandle& cat, EventQueue& ev,
+                               ConversionQueue& cv)
+    : cfg(c), catalog(cat), events(ev), conversions(cv), tpl(c.templates_dir) {}
 
 // --------------------------------------------------------------- dispatch --
 
@@ -359,7 +360,7 @@ HttpResponse handle_redirect(HandlerContext& ctx, Identity const& id,
     // 302, never 301: a permanent redirect is cached by the browser forever,
     // which would silently stop both the click log and any partner change.
     res.set(http::field::cache_control, "no-store");
-    res.set(http::field::referrer_policy, "no-referrer");
+    res.set("Referrer-Policy", "no-referrer");
     res.body() = "";
     return res;
 }
@@ -401,6 +402,58 @@ HttpResponse handle_file(std::filesystem::path const& root, std::string_view rel
     auto res = make_response(http::status::ok, ss.str(), mime);
     res.set(http::field::cache_control, "public, max-age=3600");
     return res;
+}
+
+// GET /cpa/postback — the affiliate network telling us a click turned into an
+// order. Matching happens by click token, which is the only thing we ever gave
+// the partner, so this is what closes the funnel from impression to revenue.
+//
+// Authenticated with a shared secret: without it anyone could invent
+// conversions and poison every revenue number we have.
+HttpResponse handle_postback(HandlerContext& ctx,
+                             std::unordered_map<std::string, std::string> const& q) {
+    if (ctx.cfg.postback_secret.empty()) {
+        spdlog::error("postback received but no secret configured; refusing");
+        return text_response(http::status::service_unavailable, "not configured");
+    }
+
+    auto sign = q.find("sign");
+    if (sign == q.end() ||
+        sign->second.size() != ctx.cfg.postback_secret.size() ||
+        sodium_memcmp(sign->second.data(), ctx.cfg.postback_secret.data(),
+                      ctx.cfg.postback_secret.size()) != 0) {
+        // Constant-time compare: a timing oracle here would hand out the secret.
+        spdlog::warn("postback with bad signature");
+        return text_response(http::status::forbidden, "bad signature");
+    }
+
+    auto subid = q.find("subid");
+    if (subid == q.end() || subid->second.empty()) {
+        return text_response(http::status::bad_request, "missing subid");
+    }
+
+    Conversion conv;
+    conv.click_token = subid->second;
+    conv.ts          = now_ms();
+    conv.order_ref   = q.count("order") ? q.at("order") : "";
+    conv.status      = q.count("status") ? q.at("status") : "pending";
+    if (auto it = q.find("amount"); it != q.end()) {
+        // Partners quote rubles; we store kopecks.
+        try {
+            conv.amount = static_cast<Kopek>(std::stod(it->second) * 100.0);
+        } catch (std::exception const&) {
+            return text_response(http::status::bad_request, "bad amount");
+        }
+    }
+
+    if (conv.status != "pending" && conv.status != "approved" && conv.status != "rejected") {
+        return text_response(http::status::bad_request, "bad status");
+    }
+
+    ctx.conversions.push(std::move(conv));
+    // Networks retry on anything but a 200, so acknowledge as soon as it is
+    // queued rather than after it reaches disk.
+    return text_response(http::status::ok, "ok");
 }
 
 // POST /api/ev — impression batches from the page, sent with sendBeacon.
@@ -479,6 +532,8 @@ HttpResponse dispatch(HttpRequest const& req, HandlerContext& ctx,
             res = handle_file(ctx.cfg.media_root, p.substr(7));
         } else if (method == http::verb::post && p == "/api/ev") {
             res = handle_beacon(ctx, id, req, client_ip);
+        } else if (method == http::verb::get && p == "/cpa/postback") {
+            res = handle_postback(ctx, q);
         } else if (method == http::verb::get && p == "/healthz") {
             res = text_response(http::status::ok, "ok");
         } else {

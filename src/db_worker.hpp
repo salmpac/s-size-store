@@ -17,7 +17,8 @@ namespace ssize {
 // drop events in the queue — so no HTTP request can ever block on disk I/O.
 class DbWorker {
 public:
-    DbWorker(Config const& cfg, CatalogHandle& catalog, EventQueue& events);
+    DbWorker(Config const& cfg, CatalogHandle& catalog, EventQueue& events,
+             ConversionQueue& conversions);
     ~DbWorker();
 
     DbWorker(DbWorker const&) = delete;
@@ -33,11 +34,13 @@ public:
 private:
     void run();
     void flush_events(class DbConn& conn);
+    void flush_conversions(class DbConn& conn);
     void maintenance(class DbConn& conn);
 
     Config const&  cfg_;
     CatalogHandle& catalog_;
     EventQueue&    events_;
+    ConversionQueue& conversions_;
 
     std::thread       thread_;
     std::atomic<bool> running_{false};

@@ -44,14 +44,15 @@ struct HttpServer::Impl {
 
     HandlerContext handler_ctx;
 
-    Impl(Config const& c, CatalogHandle& cat, EventQueue& ev)
+    Impl(Config const& c, CatalogHandle& cat, EventQueue& ev, ConversionQueue& cv)
         : cfg(c),
           io_ctx(std::make_shared<asio::io_context>(1)),
-          handler_ctx{c, cat, ev} {}
+          handler_ctx{c, cat, ev, cv} {}
 };
 
-HttpServer::HttpServer(Config const& cfg, CatalogHandle& catalog, EventQueue& events)
-    : impl_(std::make_unique<Impl>(cfg, catalog, events)) {}
+HttpServer::HttpServer(Config const& cfg, CatalogHandle& catalog, EventQueue& events,
+                       ConversionQueue& conversions)
+    : impl_(std::make_unique<Impl>(cfg, catalog, events, conversions)) {}
 
 HttpServer::~HttpServer() { stop(); }
 

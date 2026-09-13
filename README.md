@@ -32,6 +32,7 @@ sed -i "s|ip_hash_secret    = \"CHANGE_ME\"|ip_hash_secret    = \"$(head -c 32 /
 
 ./build/dev/ssize-admin migrate --config config.toml
 ./build/dev/ssize-admin seed    --config config.toml --count 60
+./scripts/make-placeholders.sh          # tiles the seeded items point at
 ./build/dev/ssize --config config.toml
 ```
 

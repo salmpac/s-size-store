@@ -18,12 +18,14 @@ using HttpRequest  = boost::beast::http::request<boost::beast::http::string_body
 using HttpResponse = boost::beast::http::response<boost::beast::http::string_body>;
 
 struct HandlerContext {
-    Config const&  cfg;
-    CatalogHandle& catalog;
-    EventQueue&    events;
-    Templating     tpl;
+    Config const&    cfg;
+    CatalogHandle&   catalog;
+    EventQueue&      events;
+    ConversionQueue& conversions;
+    Templating       tpl;
 
-    HandlerContext(Config const& c, CatalogHandle& cat, EventQueue& ev);
+    HandlerContext(Config const& c, CatalogHandle& cat, EventQueue& ev,
+                   ConversionQueue& cv);
 };
 
 // Always returns a response; never throws.

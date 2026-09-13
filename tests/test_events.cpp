@@ -50,3 +50,22 @@ TEST_CASE("user agents are classified", "[events]") {
     CHECK(classify_ua("curl/8.0") == "bot");
     CHECK(classify_ua("") == "bot");
 }
+
+TEST_CASE("conversion queue drains what was pushed", "[events]") {
+    ConversionQueue q;
+    Conversion c;
+    c.click_token = "TOKEN";
+    c.order_ref = "order-1";
+    c.amount = 499000;
+    c.status = "approved";
+    CHECK(q.push(c));
+
+    std::vector<Conversion> batch;
+    q.drain(batch);
+    REQUIRE(batch.size() == 1);
+    CHECK(batch[0].click_token == "TOKEN");
+    CHECK(batch[0].amount == 499000);
+
+    q.drain(batch);
+    CHECK(batch.empty());
+}

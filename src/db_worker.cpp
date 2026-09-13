@@ -18,8 +18,9 @@ TsMs now_ms() {
 
 }  // namespace
 
-DbWorker::DbWorker(Config const& cfg, CatalogHandle& catalog, EventQueue& events)
-    : cfg_(cfg), catalog_(catalog), events_(events) {}
+DbWorker::DbWorker(Config const& cfg, CatalogHandle& catalog, EventQueue& events,
+                   ConversionQueue& conversions)
+    : cfg_(cfg), catalog_(catalog), events_(events), conversions_(conversions) {}
 
 DbWorker::~DbWorker() { stop(); }
 
@@ -69,8 +70,11 @@ void DbWorker::run() {
 
         try {
             flush_events(conn);
+            // After the events: a postback can only match a click that has
+            // already been written.
+            flush_conversions(conn);
         } catch (std::exception const& e) {
-            spdlog::error("event flush failed: {}", e.what());
+            spdlog::error("flush failed: {}", e.what());
         }
 
         if (loop_start >= next_maintenance) {
@@ -104,6 +108,23 @@ void DbWorker::flush_events(DbConn& conn) {
 
     conn.insert_events(batch);
     spdlog::debug("flushed {} events", batch.size());
+}
+
+void DbWorker::flush_conversions(DbConn& conn) {
+    std::vector<Conversion> batch;
+    conversions_.drain(batch);
+
+    for (auto const& c : batch) {
+        bool matched = conn.record_conversion(c.click_token, c.ts, c.order_ref,
+                                              c.amount, c.status, c.raw);
+        if (!matched) {
+            // Either a forged postback or one for a click already pruned. Worth
+            // seeing in the log either way.
+            spdlog::warn("postback for unknown click token '{}' (order '{}')",
+                         c.click_token, c.order_ref);
+        }
+    }
+    if (!batch.empty()) spdlog::info("recorded {} postbacks", batch.size());
 }
 
 void DbWorker::maintenance(DbConn& conn) {

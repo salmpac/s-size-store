@@ -22,7 +22,11 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
 endif()
 
 # --- dependencies (provided by the nix dev shell / flake) ---
-find_package(Boost REQUIRED COMPONENTS fiber context system program_options)
+# CONFIG mode: FindBoost is gone in CMake 4, and Boost ships its own config.
+# boost::system is header-only since 1.69 and no longer a component — it comes
+# in through Boost::headers.
+cmake_policy(SET CMP0167 NEW)
+find_package(Boost 1.83 CONFIG REQUIRED COMPONENTS fiber context program_options)
 find_package(SQLite3 REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
@@ -60,9 +64,9 @@ target_include_directories(ssize_core PUBLIC src)
 
 target_link_libraries(ssize_core
     PUBLIC
+        Boost::headers
         Boost::fiber
         Boost::context
-        Boost::system
         SQLite::SQLite3
         PkgConfig::SODIUM
         nlohmann_json::nlohmann_json

@@ -366,7 +366,10 @@ bool DbConn::record_conversion(std::string_view click_token,
     Stmt st(conn_, R"(
         INSERT INTO conversions (click_token, ts, order_ref, amount_kopek, status, raw)
         VALUES (?1,?2,?3,?4,?5,?6)
-        ON CONFLICT(order_ref) DO UPDATE
+        -- The unique index on order_ref is partial (it skips NULLs), so the
+        -- conflict target has to repeat that WHERE clause or sqlite will not
+        -- match it.
+        ON CONFLICT(order_ref) WHERE order_ref IS NOT NULL DO UPDATE
             SET status = excluded.status,
                 amount_kopek = excluded.amount_kopek,
                 ts = excluded.ts;

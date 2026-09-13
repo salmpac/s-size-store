@@ -72,16 +72,17 @@ int main(int argc, char** argv) {
             spdlog::info("db schema at version {}", v);
         }
 
-        ssize::CatalogHandle catalog;
-        ssize::EventQueue    events(cfg.event_queue_capacity);
+        ssize::CatalogHandle    catalog;
+        ssize::EventQueue       events(cfg.event_queue_capacity);
+        ssize::ConversionQueue  conversions;
 
-        ssize::DbWorker db(cfg, catalog, events);
+        ssize::DbWorker db(cfg, catalog, events, conversions);
         // Build the first snapshot before accepting traffic so the very first
         // visitor never sees an empty feed.
         db.refresh_now();
         db.start();
 
-        ssize::HttpServer server(cfg, catalog, events);
+        ssize::HttpServer server(cfg, catalog, events, conversions);
         server.start();
 
         std::signal(SIGINT,  request_shutdown);

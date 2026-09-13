@@ -4,6 +4,7 @@
 
 #include <cstdint>
 #include <mutex>
+#include <optional>
 #include <span>
 #include <string>
 #include <string_view>
@@ -41,6 +42,27 @@ private:
     std::vector<Event> pending_;
     std::size_t        max_pending_;
     std::size_t        dropped_{0};
+};
+
+// An affiliate postback waiting to be written. Same reasoning as EventQueue:
+// the partner's server gets its 200 immediately and the DB thread persists it.
+struct Conversion {
+    std::string click_token;
+    TsMs        ts{};
+    std::string order_ref;
+    std::optional<Kopek> amount;
+    std::string status;
+    std::string raw;
+};
+
+class ConversionQueue {
+public:
+    bool push(Conversion c);
+    void drain(std::vector<Conversion>& out);
+
+private:
+    mutable std::mutex      mu_;
+    std::vector<Conversion> pending_;
 };
 
 // Salted hash of a client IP. The raw address is never stored: under 152-ФЗ it

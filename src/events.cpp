@@ -29,6 +29,20 @@ std::size_t EventQueue::dropped() const noexcept {
     return dropped_;
 }
 
+bool ConversionQueue::push(Conversion conv) {
+    std::lock_guard<std::mutex> lk(mu_);
+    // No cap here: postbacks are money, and they arrive at a rate set by the
+    // affiliate network, not by visitors. Dropping one loses revenue data.
+    pending_.push_back(std::move(conv));
+    return true;
+}
+
+void ConversionQueue::drain(std::vector<Conversion>& out) {
+    out.clear();
+    std::lock_guard<std::mutex> lk(mu_);
+    pending_.swap(out);
+}
+
 std::vector<std::uint8_t> hash_ip(std::string_view ip, std::string_view secret) {
     std::array<std::uint8_t, crypto_generichash_BYTES_MIN> out{};
     crypto_generichash(out.data(), out.size(),
