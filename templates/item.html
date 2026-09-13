@@ -1,0 +1,56 @@
+{% include "_header.html" %}
+
+<main class="item" data-item="{{ item.id }}" data-surface="item">
+  <a class="back" href="{{ base }}/">← в каталог</a>
+
+  <div class="item-grid">
+    <div class="gallery">
+      {% for src in item.images %}
+      <img src="{{ src }}" alt="{{ item.title }}" loading="lazy" decoding="async">
+      {% endfor %}
+      {% if length(item.images) == 0 %}<div class="ph ph-lg" aria-hidden="true"></div>{% endif %}
+    </div>
+
+    <div class="item-info">
+      <h1>{{ item.title }}</h1>
+      {% if item.brand != "" %}<p class="card-brand">{{ item.brand }}</p>{% endif %}
+
+      <div class="price-row price-row-lg">
+        <span class="price">{{ item.price }} ₽</span>
+        {% if existsIn(item, "old_price") %}
+        <span class="price-old">{{ item.old_price }} ₽</span>
+        {% endif %}
+      </div>
+
+      {% if length(item.sizes) > 0 %}
+      <div class="block">
+        <h2>Размеры</h2>
+        <div class="sizes">{% for s in item.sizes %}<span class="size">{{ s }}</span>{% endfor %}</div>
+      </div>
+      {% endif %}
+
+      {% if length(item.colors) > 0 %}
+      <div class="block">
+        <h2>Цвет</h2>
+        <div class="swatches">
+          {% for c in item.colors %}
+          <span class="swatch" style="background: {{ c.hex }}" title="{{ c.name }}"></span>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      {% if item.description != "" %}
+      <div class="block"><p class="desc">{{ item.description }}</p></div>
+      {% endif %}
+
+      <a class="buy buy-lg" href="{{ item.out }}" target="_blank" rel="noopener nofollow">
+        Перейти к товару
+      </a>
+
+      {% for tag in item.tags %}<span class="chip chip-sm">{{ tag }}</span>{% endfor %}
+    </div>
+  </div>
+</main>
+
+{% include "_footer.html" %}

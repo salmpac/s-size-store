@@ -1,0 +1,54 @@
+{% include "_header.html" %}
+
+<main class="feed">
+  <nav class="chips" aria-label="Фильтры">
+    <a class="chip {% if active_tag == "" %}chip-on{% endif %}" href="{{ base }}/">всё</a>
+    {% for tag in tags %}
+    <a class="chip {% if tag == active_tag %}chip-on{% endif %}"
+       href="{{ base }}/?tag={{ tag }}">{{ tag }}</a>
+    {% endfor %}
+  </nav>
+
+  {% if length(items) == 0 %}
+  <p class="empty">Здесь пока пусто. Каталог наполняется.</p>
+  {% endif %}
+
+  <div class="grid">
+    {% for it in items %}
+    <article class="card" data-item="{{ it.id }}" data-pos="{{ it.position }}" data-surface="feed">
+      <a class="card-media" href="{{ it.url }}?p={{ it.position }}">
+        {% if it.image != "" %}
+        <img src="{{ it.image }}" alt="{{ it.title }}" loading="lazy" decoding="async">
+        {% else %}
+        <div class="ph" aria-hidden="true"></div>
+        {% endif %}
+        {% if existsIn(it, "old_price") %}<span class="badge">sale</span>{% endif %}
+      </a>
+
+      <div class="card-body">
+        <a class="card-title" href="{{ it.url }}?p={{ it.position }}">{{ it.title }}</a>
+        {% if it.brand != "" %}<span class="card-brand">{{ it.brand }}</span>{% endif %}
+
+        <div class="price-row">
+          <span class="price">{{ it.price }} ₽</span>
+          {% if existsIn(it, "old_price") %}
+          <span class="price-old">{{ it.old_price }} ₽</span>
+          {% endif %}
+        </div>
+
+        <div class="sizes">
+          {% for s in it.sizes %}<span class="size">{{ s }}</span>{% endfor %}
+        </div>
+
+        <!-- Straight from the card to the product, as the concept asks. The
+             href goes through /r/ so the click is counted exactly once. -->
+        <a class="buy" href="{{ it.out }}" target="_blank" rel="noopener nofollow">
+          Смотреть
+        </a>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+</main>
+
+{% include "_footer.html" %}

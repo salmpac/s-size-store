@@ -1,0 +1,30 @@
+[Unit]
+Description=s-size catalog service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ssize
+Group=ssize
+ExecStart=/usr/bin/ssize --config /etc/ssize/config.toml
+Restart=on-failure
+RestartSec=3s
+
+StateDirectory=ssize
+WorkingDirectory=/var/lib/ssize
+
+# The service only ever needs its own state directory.
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_INET AF_INET6
+ReadWritePaths=/var/lib/ssize
+
+[Install]
+WantedBy=multi-user.target

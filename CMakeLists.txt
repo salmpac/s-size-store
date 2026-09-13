@@ -84,6 +84,7 @@ if(SSIZE_BUILD_TESTS)
     find_package(Catch2 3 CONFIG REQUIRED)
     enable_testing()
     add_subdirectory(tests)
+    target_compile_definitions(ssize_tests PRIVATE SSIZE_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 endif()
 
 # --- install / packaging ---
