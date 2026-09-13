@@ -368,7 +368,9 @@ HttpResponse handle_redirect(HandlerContext& ctx, Identity const& id,
 // GET /static/* and /media/* — only used when running without a reverse proxy.
 // In production nginx serves both directly; it does sendfile and caching far
 // better than we would, and it keeps image bytes out of this process entirely.
-HttpResponse handle_file(std::filesystem::path const& root, std::string_view rel) {
+HttpResponse handle_file(HttpRequest const& req,
+                         std::filesystem::path const& root,
+                         std::string_view rel) {
     // Reject anything that could climb out of the root before touching disk.
     if (rel.find("..") != std::string_view::npos) {
         return text_response(http::status::forbidden, "forbidden");
@@ -381,6 +383,25 @@ HttpResponse handle_file(std::filesystem::path const& root, std::string_view rel
     auto canonical_path = std::filesystem::weakly_canonical(path, ec);
     if (ec || canonical_path.string().rfind(canonical_root.string(), 0) != 0) {
         return text_response(http::status::forbidden, "forbidden");
+    }
+
+    // Validator from mtime + size. An immutable long max-age would be right for
+    // content-hashed filenames, but these paths are stable and their contents
+    // change (a real photo replacing a placeholder, a CSS edit), so a plain
+    // max-age serves a stale file for an hour with no way to force a refresh.
+    // no-cache means "keep it, but ask first" — the revalidation is a 304.
+    auto mtime = std::filesystem::last_write_time(canonical_path, ec);
+    auto fsize = std::filesystem::file_size(canonical_path, ec);
+    std::string etag;
+    if (!ec) {
+        etag = "\"" + std::to_string(mtime.time_since_epoch().count()) + "-" +
+               std::to_string(fsize) + "\"";
+        if (req[http::field::if_none_match] == etag) {
+            HttpResponse nm{http::status::not_modified, 11};
+            nm.set(http::field::etag, etag);
+            nm.set(http::field::cache_control, "no-cache");
+            return nm;
+        }
     }
 
     std::ifstream in(canonical_path, std::ios::binary);
@@ -400,7 +421,8 @@ HttpResponse handle_file(std::filesystem::path const& root, std::string_view rel
     else if (ext == ".jpg" || ext == ".jpeg") mime = "image/jpeg";
 
     auto res = make_response(http::status::ok, ss.str(), mime);
-    res.set(http::field::cache_control, "public, max-age=3600");
+    res.set(http::field::cache_control, "no-cache");
+    if (!etag.empty()) res.set(http::field::etag, etag);
     return res;
 }
 
@@ -527,9 +549,9 @@ HttpResponse dispatch(HttpRequest const& req, HandlerContext& ctx,
             res = idv ? handle_redirect(ctx, id, req, client_ip, *idv, q)
                       : text_response(http::status::bad_request, "bad id");
         } else if (method == http::verb::get && p.starts_with("/static/")) {
-            res = handle_file(ctx.cfg.static_dir, p.substr(8));
+            res = handle_file(req, ctx.cfg.static_dir, p.substr(8));
         } else if (method == http::verb::get && p.starts_with("/media/")) {
-            res = handle_file(ctx.cfg.media_root, p.substr(7));
+            res = handle_file(req, ctx.cfg.media_root, p.substr(7));
         } else if (method == http::verb::post && p == "/api/ev") {
             res = handle_beacon(ctx, id, req, client_ip);
         } else if (method == http::verb::get && p == "/cpa/postback") {
@@ -546,6 +568,11 @@ HttpResponse dispatch(HttpRequest const& req, HandlerContext& ctx,
 
     apply_identity(res, id, ctx.cfg);
     res.set(http::field::server, "ssize");
+    // Pages are rebuilt from a snapshot that changes every few seconds and they
+    // carry identity cookies; nothing here is safe to hold onto.
+    if (res.find(http::field::cache_control) == res.end()) {
+        res.set(http::field::cache_control, "no-store");
+    }
     return res;
 }
 
