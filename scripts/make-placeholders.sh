@@ -16,17 +16,19 @@ open_svg() {
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 800" width="600" height="800">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="0.4" y2="1">
-      <stop offset="0%" stop-color="#14141b"/>
-      <stop offset="100%" stop-color="#1d1a2b"/>
+      <stop offset="0%" stop-color="#221d33"/>
+      <stop offset="100%" stop-color="#2e2545"/>
     </linearGradient>
     <linearGradient id="cloth" x1="0" y1="0" x2="0.6" y2="1">
-      <stop offset="0%" stop-color="#343143"/>
-      <stop offset="100%" stop-color="#26242f"/>
+      <stop offset="0%" stop-color="#544b77"/>
+      <stop offset="100%" stop-color="#3b3457"/>
     </linearGradient>
   </defs>
   <rect width="600" height="800" fill="url(#bg)"/>
-  <g fill="url(#cloth)" stroke="#7c4dff" stroke-width="3"
-     stroke-linejoin="round" stroke-linecap="round" opacity=".92">
+  <!-- Deliberately lighter than the card it sits in (bg-raised, #14141b):
+       a tile at the same value as its surroundings reads as a failed image. -->
+  <g fill="url(#cloth)" stroke="#b79dff" stroke-width="5"
+     stroke-linejoin="round" stroke-linecap="round">
 EOF
 }
 
@@ -34,7 +36,7 @@ close_svg() {
   cat <<EOF
   </g>
   <text x="300" y="742" font-family="Helvetica,Arial,sans-serif" font-size="23"
-        fill="#5b5470" text-anchor="middle" letter-spacing="1">$1</text>
+        fill="#9a8fc4" text-anchor="middle" letter-spacing="1">$1</text>
 </svg>
 EOF
 }
@@ -145,7 +147,7 @@ draw 10 "свитер крупной вязки" '
 # 11 — balaclava
 draw 11 "балаклава" '
     <path d="M300 210 q110 0 110 150 q0 90 -30 150 l-160 0 q-30 -60 -30 -150 q0 -150 110 -150 Z"/>
-    <path d="M222 386 q78 -44 156 0 q-78 44 -156 0 Z" fill="#14141b"/>
+    <path d="M222 386 q78 -44 156 0 q-78 44 -156 0 Z" fill="#241d38"/>
     <path d="M220 510 l160 0 l22 90 l-204 0 Z"/>
     <circle cx="262" cy="386" r="11" fill="#7c4dff" stroke="none"/>
     <circle cx="338" cy="386" r="11" fill="#7c4dff" stroke="none"/>'
@@ -162,5 +164,14 @@ draw 12 "рубашка оверсайз" '
       <circle cx="300" cy="366" r="6"/><circle cx="300" cy="444" r="6"/>
       <circle cx="300" cy="522" r="6"/><circle cx="300" cy="600" r="6"/>
     </g>'
+
+# A malformed tile still renders as a broken image in the browser while the
+# server happily returns 200, which is a confusing thing to debug. Catch it here.
+if command -v python3 >/dev/null; then
+  for f in "$root"/*.svg; do
+    python3 -c "import sys,xml.dom.minidom; xml.dom.minidom.parse(sys.argv[1])" "$f" \
+      || { echo "invalid SVG: $f" >&2; exit 1; }
+  done
+fi
 
 echo "wrote 12 garment tiles to $root"
